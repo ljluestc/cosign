@@ -1,10 +1,10 @@
-// Copyright 2021 The Sigstore Authors
+// Copyright 2021 The Sigstore Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,6 +30,7 @@ import (
 	"github.com/sigstore/cosign/v2/pkg/types"
 )
 
+// AttestationCmd attaches attestations to an image from a list of signed payload files.
 func AttestationCmd(ctx context.Context, regOpts options.RegistryOptions, signedPayloads []string, imageRef string) error {
 	ociremoteOpts, err := regOpts.ClientOpts(ctx)
 	if err != nil {
@@ -45,8 +46,9 @@ func AttestationCmd(ctx context.Context, regOpts options.RegistryOptions, signed
 	return nil
 }
 
+// attachAttestation attaches a single attestation to the specified image.
 func attachAttestation(ctx context.Context, remoteOpts []ociremote.Option, signedPayload, imageRef string, nameOpts []name.Option) error {
-	fmt.Fprintf(os.Stderr, "Using payload from: %s", signedPayload)
+	fmt.Fprintf(os.Stderr, "Using payload from: %s\n", signedPayload)
 	attestationFile, err := os.Open(signedPayload)
 	if err != nil {
 		return err
@@ -66,11 +68,11 @@ func attachAttestation(ctx context.Context, remoteOpts []ociremote.Option, signe
 		}
 
 		if env.PayloadType != types.IntotoPayloadType {
-			return fmt.Errorf("invalid payloadType %s on envelope. Expected %s", env.PayloadType, types.IntotoPayloadType)
+			return fmt.Errorf("invalid payloadType %s on envelope; expected %s", env.PayloadType, types.IntotoPayloadType)
 		}
 
 		if len(env.Signatures) == 0 {
-			return fmt.Errorf("could not attach attestation without having signatures")
+			return fmt.Errorf("cannot attach attestation without signatures")
 		}
 
 		ref, err := name.ParseReference(imageRef, nameOpts...)
@@ -85,10 +87,8 @@ func attachAttestation(ctx context.Context, remoteOpts []ociremote.Option, signe
 		if err != nil {
 			return err
 		}
-		// Overwrite "ref" with a digest to avoid a race where we use a tag
-		// multiple times, and it potentially points to different things at
-		// each access.
-		ref = digest // nolint
+		// Overwrite "ref" with a digest to avoid race conditions with tags.
+		ref = digest
 
 		opts := []static.Option{static.WithLayerMediaType(types.DssePayloadType)}
 		att, err := static.NewAttestation(payload, opts...)
@@ -106,9 +106,7 @@ func attachAttestation(ctx context.Context, remoteOpts []ociremote.Option, signe
 			return err
 		}
 
-		// Publish the signatures associated with this entity
-		err = ociremote.WriteAttestations(digest.Repository, newSE, remoteOpts...)
-		if err != nil {
+		if err = ociremote.WriteAttestations(digest.Repository, newSE, remoteOpts...); err != nil {
 			return err
 		}
 	}
